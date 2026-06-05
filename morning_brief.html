@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Brief · 科研早报</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:    #f0f6ff;
+  --ink2:   #b8cfe8;
+  --ink3:   #6a8fb0;
+  --ink4:   #2e5070;
+  --ink5:   #0e2035;
+  --bg0:    #030912;
+  --bg1:    #060f1e;
+  --bg2:    #0a1828;
+  --bg3:    #0f2035;
+  --bg4:    #142840;
+  --line:   rgba(30,100,180,0.18);
+  --line2:  rgba(40,120,200,0.30);
+  --gold:   #d4a843;
+  --goldb:  rgba(212,168,67,0.12);
+  --red:    #e85555;
+  --redb:   rgba(232,85,85,0.10);
+  --green:  #3ab87a;
+  --greenb: rgba(58,184,122,0.10);
+  --blue:   #4a9eff;
+  --blueb:  rgba(74,158,255,0.10);
+  --violet: #9b72e8;
+  --violetb:rgba(155,114,232,0.10);
+  --teal:   #26c4b0;
+  --tealb:  rgba(38,196,176,0.10);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Noto Sans SC', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--bg0);
+  color: var(--ink2);
+  font-size: 14px;
+  line-height: 1.65;
+  min-height: 100vh;
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 99px; }
+
+/* ── LOADER ── */
+#loader {
+  position: fixed; inset: 0; background: var(--bg0); z-index: 999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+#loader.fade { animation: fadeout .6s ease forwards; }
+@keyframes fadeout { to { opacity: 0; pointer-events: none; } }
+.l-icon { font-size: 42px; margin-bottom: 20px; animation: lbounce 2s ease-in-out infinite; }
+@keyframes lbounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)} }
+.l-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: .08em; margin-bottom: 4px; }
+.l-sub { font-size: 11px; color: var(--ink4); font-family: var(--mono); letter-spacing: .1em; margin-bottom: 28px; }
+.l-track { width: 260px; height: 1px; background: var(--bg4); margin-bottom: 12px; position: relative; }
+.l-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--gold)); transition: width .35s ease; }
+.l-msg { font-size: 12px; color: var(--ink4); font-family: var(--mono); text-align: center; min-height: 18px; }
+.l-dots { display: flex; gap: 8px; margin-top: 20px; }
+.l-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bg4); transition: all .3s; }
+.l-dot.on { background: var(--blue); }
+.l-dot.done { background: var(--green); }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(3,9,18,.92);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  height: 48px;
+  display: flex; align-items: center; padding: 0 28px; gap: 20px;
+}
+.brand { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: .08em; display: flex; align-items: center; gap: 8px; }
+.brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+.t-div { width: 1px; height: 16px; background: var(--line); }
+.date-label { font-size: 11px; color: var(--ink4); font-family: var(--mono); }
+.t-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.sync-info { font-size: 11px; color: var(--ink4); font-family: var(--mono); display: flex; align-items: center; gap: 5px; }
+.sync-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.btn-refresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 4px;
+  background: transparent; border: 1px solid var(--line2);
+  color: var(--ink3); font-size: 12px; font-family: var(--sans);
+  cursor: pointer; transition: all .15s; letter-spacing: .02em;
+}
+.btn-refresh svg { width: 12px; height: 12px; }
+.btn-refresh:hover { border-color: var(--blue); color: var(--blue); }
+.btn-refresh:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── LAYOUT ── */
+.page { display: none; }
+.page.on { display: block; animation: fadeup .2s ease; }
+@keyframes fadeup { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:none} }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 28px 28px; }
+
+/* ── DATE HEADER ── */
+.day-header {
+  display: flex; align-items: baseline; gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.day-main { font-size: 22px; font-weight: 600; color: var(--ink); }
+.day-sub  { font-size: 13px; color: var(--ink4); font-family: var(--mono); }
+.day-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* ── SECTION LABEL ── */
+.sec-label {
+  font-size: 10px; color: var(--ink4);
+  text-transform: uppercase; letter-spacing: .12em;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ── CORE FIELDS ── */
+.core-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; }
+
+.core-card {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.core-card:hover { border-color: var(--line2); }
+
+/* Card header strip */
+.cc-strip { height: 3px; }
+
+/* Card head */
+.cc-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.cc-emoji { font-size: 22px; }
+.cc-label { font-size: 15px; font-weight: 600; color: var(--ink); }
+.cc-sub { font-size: 11px; color: var(--ink4); margin-top: 2px; font-family: var(--mono); }
+.cc-nums { margin-left: auto; display: flex; gap: 20px; }
+.cc-num { text-align: right; }
+.cc-n { font-size: 20px; font-weight: 300; font-family: var(--mono); }
+.cc-l { font-size: 9px; color: var(--ink4); text-transform: uppercase; letter-spacing: .06em; }
+
+/* TODAY's brief — the hero section */
+.cc-today {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.today-label {
+  font-size: 10px; color: var(--ink4);
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 7px;
+}
+.ai-tag {
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--blueb); border: 1px solid rgba(74,158,255,.2);
+  color: var(--blue); font-size: 10px; font-family: var(--mono);
+}
+.brief-items { display: flex; flex-direction: column; gap: 10px; }
+.brief-item { display: flex; gap: 10px; }
+.bi-marker {
+  flex-shrink: 0; margin-top: 3px;
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.bi-text { font-size: 13px; color: var(--ink2); line-height: 1.7; }
+.bi-text strong { color: var(--ink); font-weight: 500; }
+
+/* Top paper of the day */
+.cc-top-paper {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: flex-start; gap: 12px;
+  cursor: pointer; transition: background .12s;
+}
+.cc-top-paper:hover { background: var(--bg2); }
+.tp-badge {
+  flex-shrink: 0; padding: 3px 8px; border-radius: 3px;
+  font-size: 10px; font-family: var(--mono); border: 1px solid;
+  margin-top: 2px;
+}
+.tp-body { flex: 1; }
+.tp-title { font-size: 13px; color: var(--ink); line-height: 1.5; margin-bottom: 4px; transition: color .12s; }
+.cc-top-paper:hover .tp-title { color: var(--blue); }
+.tp-meta { font-size: 11px; color: var(--ink4); font-family: var(--mono); display: flex; gap: 10px; }
+.tp-j { color: var(--blue); }
+.tp-new { color: var(--red); }
+.tp-arr { color: var(--ink4); transition: color .12s; margin-top: 2px; }
+.cc-top-paper:hover .tp-arr { color: var(--blue); }
+
+/* More papers toggle */
+.cc-more {
+  padding: 0 20px;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height .3s ease, padding .3s;
+}
+.cc-more.open { max-height: 600px; padding: 12px 20px; }
+.more-paper { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; transition: all .12s; }
+.more-paper:last-child { border-bottom: none; }
+.more-paper:hover .mp-title { color: var(--blue); }
+.mp-num { font-size: 10px; font-family: var(--mono); color: var(--ink4); width: 16px; flex-shrink: 0; padding-top: 2px; }
+.mp-title { font-size: 12px; color: var(--ink2); line-height: 1.5; margin-bottom: 3px; transition: color .12s; }
+.mp-meta { font-size: 10px; color: var(--ink4); font-family: var(--mono); display: flex; gap: 8px; }
+.mp-j { color: var(--blue); }
+
+/* Toggle more btn */
+.cc-toggle {
+  padding: 10px 20px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 12px; color: var(--ink4);
+  transition: color .12s; border-top: 1px solid var(--line);
+  gap: 6px; user-select: none;
+}
+.cc-toggle:hover { color: var(--ink3); }
+.toggle-arrow { transition: transform .3s; display: inline-block; }
+.toggle-arrow.open { transform: rotate(180deg); }
+
+/* ── PERIPHERAL FIELDS ── */
+.peripheral-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.pc {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.pc:hover { border-color: var(--line2); }
+.pc-head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+}
+.pc-emoji { font-size: 16px; }
+.pc-label { font-size: 12px; font-weight: 600; color: var(--ink); }
+.pc-count { margin-left: auto; font-size: 11px; color: var(--ink4); font-family: var(--mono); }
+
+/* The key insight for peripheral */
+.pc-insight {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pc-insight-label { font-size: 10px; color: var(--ink4); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.pc-insight-text { font-size: 12px; color: var(--ink2); line-height: 1.65; }
+.pc-insight-text em { color: var(--gold); font-style: normal; }
+
+/* Peripheral papers */
+.pc-papers { padding: 10px 14px; }
+.pc-paper { padding: 6px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.pc-paper:last-child { border-bottom: none; }
+.pc-paper:hover .pcp-t { color: var(--blue); }
+.pcp-t { font-size: 11px; color: var(--ink2); line-height: 1.5; margin-bottom: 2px; transition: color .12s; }
+.pcp-m { font-size: 10px; color: var(--ink4); font-family: var(--mono); display: flex; gap: 6px; }
+.pcp-j { color: var(--ink3); }
+
+/* ── WEEKLY ARCHIVE ── */
+.archive-section { margin-bottom: 32px; }
+.archive-grid { display: flex; flex-direction: column; gap: 6px; }
+.aw {
+  background: var(--bg1); border: 1px solid var(--line); border-radius: 6px;
+  overflow: hidden;
+}
+.aw-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; cursor: pointer; transition: background .12s;
+}
+.aw-head:hover { background: var(--bg2); }
+.aw-date { font-size: 12px; font-weight: 500; color: var(--ink); font-family: var(--mono); }
+.aw-counts { display: flex; gap: 10px; margin-left: auto; }
+.aw-c { font-size: 11px; color: var(--ink4); font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
+.aw-c span { font-size: 13px; font-weight: 500; }
+.aw-arr { color: var(--ink4); font-size: 12px; transition: transform .25s; }
+.aw-body { display: none; border-top: 1px solid var(--line); }
+.aw-body.open { display: block; }
+.aw-art { display: flex; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .12s; }
+.aw-art:last-child { border-bottom: none; }
+.aw-art:hover { background: var(--bg2); }
+.awa-field { font-size: 10px; color: var(--ink4); font-family: var(--mono); width: 80px; flex-shrink: 0; padding-top: 2px; }
+.awa-title { font-size: 12px; color: var(--ink2); line-height: 1.5; flex: 1; }
+.awa-j { font-size: 10px; color: var(--ink3); font-family: var(--mono); margin-top: 2px; }
+.awa-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.mini-badge { padding: 1px 5px; border-radius: 3px; font-size: 9px; border: 1px solid; font-family: var(--mono); }
+
+/* Empty states */
+.empty { text-align: center; padding: 40px; color: var(--ink4); font-size: 13px; }
+
+.login-screen{position:fixed;inset:0;background:#020508;z-index:9999;display:flex;align-items:center;justify-content:center;background-image:linear-gradient(rgba(4,20,40,0.75) 1px,transparent 1px),linear-gradient(90deg,rgba(4,20,40,0.75) 1px,transparent 1px);background-size:32px 32px;}
+.login-screen.hidden{display:none;}
+.login-box{background:#0a1828;border:1px solid rgba(40,120,200,0.35);border-radius:16px;padding:40px 44px;width:380px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.7);}
+.login-orb{font-size:42px;margin-bottom:16px;}
+.login-title{font-size:20px;font-weight:700;color:#f0f6ff;letter-spacing:.06em;margin-bottom:4px;}
+.login-sub{font-size:12px;color:#3d6080;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;margin-bottom:28px;}
+.login-input{width:100%;background:#060f1e;border:1px solid rgba(40,120,200,0.35);border-radius:8px;color:#f0f6ff;font-size:16px;font-family:'IBM Plex Mono',monospace;padding:12px 16px;outline:none;text-align:center;letter-spacing:.2em;margin-bottom:12px;transition:border-color .15s;}
+.login-input:focus{border-color:rgba(77,217,255,.6);}
+.login-input::placeholder{letter-spacing:.05em;color:#1e3d5a;}
+.login-err{font-size:12px;color:#f06565;min-height:18px;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,#0a2a4a,#1a5090);border:1px solid rgba(77,217,255,.35);border-radius:8px;color:#4dd9ff;font-size:14px;font-family:'Noto Sans SC',sans-serif;font-weight:500;cursor:pointer;transition:all .15s;letter-spacing:.04em;}
+.login-btn:hover{border-color:rgba(77,217,255,.7);box-shadow:0 0 20px rgba(77,217,255,.15);}
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-orb">☕</div>
+    <div class="login-title">MORNING<span style="color:#4dd9ff">BRIEF</span></div>
+    <div class="login-sub">PRIVATE · AUTHORIZED ACCESS ONLY</div>
+    <input class="login-input" type="password" id="login-pwd" placeholder="输入访问密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="login-err"></div>
+    <button class="login-btn" onclick="doLogin()">进入系统 →</button>
+  </div>
+</div>
+
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="l-icon">☕</div>
+  <div class="l-title">MORNING BRIEF</div>
+  <div class="l-sub">BIOMEDICAL RESEARCH INTELLIGENCE</div>
+  <div class="l-track"><div class="l-fill" id="lfill" style="width:0%"></div></div>
+  <div class="l-msg" id="lmsg">正在准备今日简报…</div>
+  <div class="l-dots" id="ldots"></div>
+</div>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="brand"><div class="brand-dot"></div>MORNING BRIEF</div>
+  <div class="t-div"></div>
+  <div class="date-label" id="date-label">—</div>
+  <div class="t-right">
+    <div class="sync-info"><span class="sync-dot"></span><span id="sync-label">准备中</span></div>
+    <button class="btn-refresh" id="rbtn" onclick="startFetch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      刷新今日简报
+    </button>
+  </div>
+</nav>
+
+<!-- MAIN PAGE -->
+<div class="page on" id="page-main">
+  <div class="wrap">
+
+    <!-- Day header -->
+    <div class="day-header">
+      <div class="day-main" id="day-main">今日科研简报</div>
+      <div class="day-sub" id="day-sub">—</div>
+    </div>
+
+    <!-- Core fields -->
+    <div class="sec-label">核心领域 · 深度追踪</div>
+    <div class="core-grid" id="core-grid"></div>
+
+    <!-- Peripheral -->
+    <div class="sec-label">外围领域 · 借鉴参考</div>
+    <div class="peripheral-grid" id="periph-grid"></div>
+
+    <!-- Archive -->
+    <div class="sec-label">历史归档 · 按周索引</div>
+    <div class="archive-section">
+      <div class="archive-grid" id="archive-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+// ── 密码保护 ──
+const _PWD = 'YUANNIANHAO';
+function doLogin(){
+  const v = document.getElementById('login-pwd').value.trim().toUpperCase().replace(/\s+/g,'');
+  if(v === _PWD){
+    document.getElementById('login-screen').classList.add('hidden');
+    sessionStorage.setItem('mb_auth','1');
+  } else {
+    document.getElementById('login-err').textContent = '密码错误，请重试';
+    document.getElementById('login-pwd').value = '';
+    document.getElementById('login-pwd').focus();
+    setTimeout(()=>{ document.getElementById('login-err').textContent=''; }, 2500);
+  }
+}
+if(sessionStorage.getItem('mb_auth')==='1'){
+  document.getElementById('login-screen').classList.add('hidden');
+}
+
+// ══════════════════════════════════
+// CONFIG
+// ══════════════════════════════════
+const DS  = 'sk-303a69720efb4e18b82c8083821825c2';
+const PM  = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+const ARC = 'mb_archive_v1'; // local backup key
+const JBIN_KEY = '$2a$10$GviOlwocy6z3vo9A4KgpYO5MgCUGM3g1H6hqpl24n2duzrztfF3nW';
+const JBIN_ID  = '6a1eef1dda38895dfe7c13ca';
+const JBIN_URL = `https://api.jsonbin.io/v3/bins/${JBIN_ID}`;
+
+// ── CORE FIELDS (deep analysis) ──
+const CORE = [
+  {
+    key:'aidd', emoji:'🤖', label:'AIDD · 蛋白质设计',
+    color:'var(--gold)', colorraw:'#d4a843', bg:'var(--goldb)',
+    q:'("protein design" AND ("deep learning" OR "machine learning" OR "AlphaFold" OR "diffusion model" OR "generative model")) OR ("de novo protein" AND AI) OR ("RFdiffusion" OR "ProteinMPNN" OR "ESMFold" OR "RoseTTAFold")',
+    focus:'重点关注：扩散模型设计蛋白质、AlphaFold应用、从头蛋白设计、AI抗体设计',
+  },
+  {
+    key:'tpd', emoji:'🔧', label:'TPD · 靶向蛋白降解',
+    color:'var(--teal)', colorraw:'#26c4b0', bg:'var(--tealb)',
+    q:'(PROTAC OR "proteolysis targeting chimera" OR "LYTAC" OR "lysosome targeting" OR "molecular glue degrader" OR "targeted protein degradation" OR "AbTAC" OR "immunoPROTAC" OR "ATTEC") AND (cancer OR protein OR ubiquitin)',
+    focus:'重点关注：新型E3配体、LYTAC溶酶体降解、抗体-PROTAC偶联、分子胶',
+  },
+  {
+    key:'adc', emoji:'💊', label:'ADC · 抗体药物偶联',
+    color:'var(--violet)', colorraw:'#9b72e8', bg:'var(--violetb)',
+    q:'"antibody drug conjugate" AND (cancer OR payload OR linker OR clinical OR HER2 OR TROP2)',
+    focus:'重点关注：新型payload、linker设计、靶点拓展、临床数据',
+  },
+];
+
+// ── PERIPHERAL FIELDS (reference view) ──
+const PERIPH = [
+  {key:'nano',  emoji:'🧫', label:'纳米抗体',   color:'#4a9eff',
+   q:'"nanobody" OR "single domain antibody" OR "VHH" AND therapeutic',
+   angle:'这些技术突破对ADC/TPD递送有什么借鉴？'},
+  {key:'bisp',  emoji:'🔗', label:'双抗',       color:'#9b72e8',
+   q:'"bispecific antibody" AND (cancer OR clinical)',
+   angle:'双靶点策略对TPD双特异性降解有什么启发？'},
+  {key:'immu',  emoji:'🛡️', label:'肿瘤免疫',   color:'#3ab87a',
+   q:'("PD-1" OR "PD-L1" OR "CAR-T" OR "checkpoint") AND cancer AND 2024:2026[dp]',
+   angle:'免疫治疗的耐药机制研究对靶向降解有什么借鉴？'},
+  {key:'chem',  emoji:'⚗️', label:'化学生物学', color:'#e85555',
+   q:'("chemical biology" OR "covalent inhibitor" OR "warhead" OR "chemoproteomic") AND cancer',
+   angle:'共价化学和化学蛋白质组学对PROTAC弹头设计有什么新思路？'},
+  {key:'cryo',  emoji:'🔭', label:'结构生物学', color:'#d4a843',
+   q:'("cryo-EM" OR "cryo-ET" OR "structural biology") AND (protein OR antibody OR degrader)',
+   angle:'最新结构解析对理解靶蛋白构象、优化降解剂有什么帮助？'},
+  {key:'delivery',emoji:'📦',label:'药物递送',  color:'#26c4b0',
+   q:'("drug delivery" OR "nanoparticle" OR "LNP" OR "lipid nanoparticle") AND (protein OR antibody OR PROTAC)',
+   angle:'新型递送策略对改善PROTAC细胞渗透性和ADC稳定性有什么参考？'},
+];
+
+const TOP_J=['Nature','Science','Cell','Nature Medicine','Nature Biotechnology',
+  'Nature Communications','NEJM','Lancet','JAMA','Cancer Cell','Immunity',
+  'Journal of Clinical Oncology','mAbs','Journal of Medicinal Chemistry',
+  'Angewandte Chemie','PNAS','eLife','Nature Chemical Biology','Nature Structural'];
+
+let coreArts={}, periphArts={};
+
+// ══════════════════════════════════
+// UTILS
+// ══════════════════════════════════
+const MN={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+function artD(a){ return new Date(+a.year||2000,(MN[a.month]||1)-1,1); }
+function isWeek(a){ return artD(a)>=new Date(Date.now()-7*864e5); }
+function is3m(a){ const d=new Date(); d.setMonth(d.getMonth()-3); return artD(a)>=d; }
+function isTop(j){ return TOP_J.some(x=>j.toLowerCase().includes(x.toLowerCase())); }
+function weekKey(date){
+  const d=new Date(date);
+  const mon=new Date(d); mon.setDate(d.getDate()-d.getDay()+1);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const fmt=x=>`${x.getMonth()+1}/${x.getDate()}`;
+  return `${mon.getFullYear()}年 ${fmt(mon)}–${fmt(sun)}`;
+}
+
+// ══════════════════════════════════
+// ARCHIVE
+// ══════════════════════════════════
+// ── Cloud Archive (JSONBin) ──
+let _arcCache = null; // in-memory cache
+
+async function loadArc(){
+  if(_arcCache) return _arcCache;
+  // try cloud first
+  try{
+    const r = await fetch(JBIN_URL+'/latest',{headers:{'X-Master-Key':JBIN_KEY}});
+    if(r.ok){ const d=await r.json(); _arcCache=d.record?.weeks||{}; return _arcCache; }
+  }catch(e){}
+  // fallback to local
+  try{ _arcCache=JSON.parse(localStorage.getItem(ARC)||'{}'); }catch(e){ _arcCache={}; }
+  return _arcCache;
+}
+
+async function saveArc(weeks){
+  _arcCache = weeks;
+  // save local backup
+  try{ localStorage.setItem(ARC, JSON.stringify(weeks)); }catch(e){}
+  // save to cloud
+  try{
+    await fetch(JBIN_URL,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':JBIN_KEY},
+      body: JSON.stringify({weeks})
+    });
+  }catch(e){ console.warn('云端归档保存失败，已存本地备份'); }
+}
+
+async function mergeArc(arts, summaries){
+  const weeks = await loadArc();
+  let n=0;
+
+  // Get current week key
+  const now = new Date();
+  const curWk = weekKey(now);
+  if(!weeks[curWk]) weeks[curWk]={arts:[],summaries:{}};
+  // migrate old format (array) to new format (object)
+  if(Array.isArray(weeks[curWk])) weeks[curWk]={arts:weeks[curWk],summaries:{}};
+
+  // Merge articles
+  arts.forEach(a=>{
+    const wk=weekKey(artD(a));
+    if(!weeks[wk]) weeks[wk]={arts:[],summaries:{}};
+    if(Array.isArray(weeks[wk])) weeks[wk]={arts:weeks[wk],summaries:{}};
+    if(!weeks[wk].arts.find(x=>x.pmid===a.pmid)){
+      weeks[wk].arts.push({pmid:a.pmid,title:a.title,journal:a.journal,date:a.date,
+        year:a.year,month:a.month,fieldKey:a.fieldKey,doi:a.doi,top:a.top});
+      n++;
+    }
+  });
+
+  // Store this week's AI summaries
+  if(summaries){
+    if(!weeks[curWk].summaries) weeks[curWk].summaries={};
+    Object.assign(weeks[curWk].summaries, summaries);
+    weeks[curWk].updatedAt = new Date().toISOString();
+  }
+
+  await saveArc(weeks);
+  return n;
+}
+
+// ══════════════════════════════════
+// PUBMED
+// ══════════════════════════════════
+async function fetchQ(q, max=25){
+  const enc=encodeURIComponent(`(${q}) AND 2026/01/01:3000[dp]`);
+  const s=await(await fetch(`${PM}/esearch.fcgi?db=pubmed&term=${enc}&retmax=${max}&sort=pub+date&retmode=json`)).json();
+  const ids=s.esearchresult?.idlist||[];
+  if(!ids.length)return[];
+  const xml=await(await fetch(`${PM}/efetch.fcgi?db=pubmed&id=${ids.join(',')}&retmode=xml`)).text();
+  return parseXML(xml);
+}
+
+function parseXML(xml){
+  const doc=new DOMParser().parseFromString(xml,'text/xml');
+  const out=[];
+  doc.querySelectorAll('PubmedArticle').forEach(el=>{
+    try{
+      const title=el.querySelector('ArticleTitle')?.textContent?.trim()||'';
+      let abs=''; el.querySelectorAll('AbstractText').forEach(p=>{const l=p.getAttribute('Label');abs+=(l?l+': ':'')+p.textContent+' ';}); abs=abs.trim();
+      const au=[]; el.querySelectorAll('Author').forEach(a=>{const ln=a.querySelector('LastName')?.textContent||'';const fn=a.querySelector('ForeName')?.textContent||'';if(ln)au.push(fn?fn[0]+'. '+ln:ln);});
+      const j=el.querySelector('Journal > Title')?.textContent||el.querySelector('ISOAbbreviation')?.textContent||'';
+      const y=el.querySelector('PubDate > Year')?.textContent||'';
+      const m=el.querySelector('PubDate > Month')?.textContent||'';
+      const pmid=el.querySelector('PMID')?.textContent||'';
+      const doiEl=[...el.querySelectorAll('ArticleId')].find(e=>e.getAttribute('IdType')==='doi');
+      const doi=doiEl?.textContent||'';
+      const kw=[]; el.querySelectorAll('Keyword').forEach(k=>{if(k.textContent)kw.push(k.textContent.trim());});
+      if(pmid&&title)
+        out.push({pmid,title,abstract:abs,authors:au,journal:j,year:y,month:m,doi,keywords:kw,
+          date:y+(m?' '+m:''),week:isWeek({year:y,month:m}),recent:is3m({year:y,month:m}),top:isTop(j)});
+    }catch(e){}
+  });
+  return out;
+}
+
+// ══════════════════════════════════
+// DEEPSEEK — CORE BRIEF
+// ══════════════════════════════════
+async function coreAI(field, arts){
+  const pool=arts.slice(0,15);
+  if(!pool.length) return {bullets:['暂无本期文献。'],topPick:null,whyRead:''};
+
+  // Find top pick (prefer top journal + recent)
+  const topPick = pool.find(a=>a.top&&a.week) || pool.find(a=>a.top) || pool[0];
+
+  const titles=pool.map((a,i)=>`[${i+1}] ${a.top?'⭐':'  '} ${a.week?'🆕':'  '} 《${a.title}》 — ${a.journal} (${a.date})`).join('\n');
+
+  const prompt=`你是资深生物医药研究员，专注${field.label}领域。基于以下最新文献，用中文生成今日简报。
+
+领域重点：${field.focus}
+
+文献列表：
+${titles}
+
+请输出以下内容，用|||分隔各部分：
+
+BULLETS（3条核心动态，每条以"•"开头，1-2句，突出技术突破点，用**加粗**关键词）
+|||
+TOPREAD（编号[${pool.indexOf(topPick)+1}]的文章，50字以内说明：这篇最值得读，因为它___）
+|||
+INSIGHT（这批文献反映的整体趋势：该领域正在向什么方向演进？1-2句）
+
+只输出内容，不要其他说明：`;
+
+  try{
+    const r=await fetch('https://api.deepseek.com/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+DS},
+      body:JSON.stringify({model:'deepseek-chat',messages:[{role:'user',content:prompt}],max_tokens:500,temperature:0.6})
+    });
+    const d=await r.json();
+    const txt=d.choices?.[0]?.message?.content||'';
+    const parts=txt.split('|||');
+    const bullets=(parts[0]||'').split('\n').filter(l=>l.trim().startsWith('•')).map(l=>l.replace(/^•\s*/,'').trim()).filter(Boolean);
+    const whyRead=(parts[1]||'').trim();
+    const insight=(parts[2]||'').trim();
+    return {bullets, topPick, whyRead, insight};
+  }catch(e){
+    return {bullets:['AI分析暂不可用，请稍后重试。'],topPick,whyRead:'',insight:''};
+  }
+}
+
+// ══════════════════════════════════
+// DEEPSEEK — PERIPHERAL INSIGHT
+// ══════════════════════════════════
+async function periphAI(field, arts){
+  if(!arts.length) return '暂无本期文献。';
+  const titles=arts.slice(0,8).map(a=>`${a.title} (${a.journal})`).join('\n');
+  const prompt=`你是研究AIDD蛋白质设计、TPD靶向降解和ADC的科研人员。
+
+${field.label}领域最新文献：
+${titles}
+
+核心问题：${field.angle}
+
+请用1-2句话，直接回答这批文献中有没有值得借鉴的方法或思路。语言简洁，直接说结论。如果没有明显借鉴价值就直接说。`;
+  try{
+    const r=await fetch('https://api.deepseek.com/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+DS},
+      body:JSON.stringify({model:'deepseek-chat',messages:[{role:'user',content:prompt}],max_tokens:150,temperature:0.5})
+    });
+    const d=await r.json();
+    return d.choices?.[0]?.message?.content?.trim()||'暂不可用';
+  }catch(e){ return 'AI分析暂不可用'; }
+}
+
+// ══════════════════════════════════
+// MAIN FETCH
+// ══════════════════════════════════
+async function startFetch(){
+  document.getElementById('rbtn').disabled=true;
+  const ldr=document.getElementById('loader');
+  ldr.style.display='flex'; ldr.classList.remove('fade');
+
+  const allFields=[...CORE,...PERIPH];
+  document.getElementById('ldots').innerHTML=allFields.map((_,i)=>`<div class="l-dot" id="ld${i}"></div>`).join('');
+
+  let idx=0;
+  const allArts=[];
+
+  // Phase 1: fetch PubMed
+  for(const f of allFields){
+    document.getElementById('lmsg').textContent=`抓取：${f.label}`;
+    document.getElementById('lfill').style.width=Math.round(idx/allFields.length*40)+'%';
+    document.getElementById(`ld${idx}`).className='l-dot on';
+    try{
+      const arts=await fetchQ(f.q);
+      arts.forEach(a=>a.fieldKey=f.key);
+      if(CORE.find(c=>c.key===f.key)) coreArts[f.key]=arts;
+      else periphArts[f.key]=arts;
+      allArts.push(...arts);
+      document.getElementById(`ld${idx}`).className='l-dot done';
+    }catch(e){ document.getElementById(`ld${idx}`).className='l-dot'; }
+    idx++;
+  }
+
+  // Dedup all
+  const seen=new Set();
+  allArts.filter(a=>{ if(seen.has(a.pmid))return false; seen.add(a.pmid); return true; });
+
+  // Merge to archive (pass summaries so they get stored too)
+  const sumToStore = {};
+  // will be filled after AI phase, call mergeArc again then
+  const added = await mergeArc(allArts, null);
+
+  // Phase 2: AI analysis
+  const coreResults={};
+  for(const f of CORE){
+    document.getElementById('lmsg').textContent=`AI分析：${f.label}`;
+    document.getElementById('lfill').style.width=(40+Math.round(CORE.indexOf(f)/CORE.length*35))+'%';
+    coreResults[f.key]=await coreAI(f, coreArts[f.key]||[]);
+  }
+
+  const periphResults={};
+  for(const f of PERIPH){
+    document.getElementById('lmsg').textContent=`借鉴分析：${f.label}`;
+    document.getElementById('lfill').style.width=(75+Math.round(PERIPH.indexOf(f)/PERIPH.length*25))+'%';
+    periphResults[f.key]=await periphAI(f, periphArts[f.key]||[]);
+  }
+
+  // Store summaries into archive
+  const storableSums = {};
+  CORE.forEach(f=>{
+    const res=coreResults[f.key];
+    if(res) storableSums[f.key]={
+      bullets: res.bullets,
+      insight: res.insight,
+      whyRead: res.whyRead,
+      topPick: res.topPick?{pmid:res.topPick.pmid,title:res.topPick.title,journal:res.topPick.journal,date:res.topPick.date}:null,
+      artCount: (coreArts[f.key]||[]).length,
+    };
+  });
+  PERIPH.forEach(f=>{
+    if(periphResults[f.key]) storableSums['periph_'+f.key]={insight:periphResults[f.key]};
+  });
+  await mergeArc([], storableSums);
+
+  document.getElementById('lfill').style.width='100%';
+  document.getElementById('lmsg').textContent='✓ 今日简报已就绪';
+
+  setTimeout(()=>{
+    ldr.classList.add('fade');
+    setTimeout(()=>{ ldr.style.display='none'; },600);
+    renderAll(coreResults, periphResults);
+    document.getElementById('rbtn').disabled=false;
+  }, 500);
+}
+
+// ══════════════════════════════════
+// RENDER
+// ══════════════════════════════════
+function renderAll(coreRes, periphRes){
+  const now=new Date();
+  const p=x=>String(x).padStart(2,'0');
+  const days=['日','一','二','三','四','五','六'];
+  document.getElementById('date-label').textContent=
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 · 星期${days[now.getDay()]}`;
+  document.getElementById('day-sub').textContent=
+    `更新于 ${p(now.getHours())}:${p(now.getMinutes())} · `+
+    CORE.map(f=>`${f.label} ${(coreArts[f.key]||[]).length}篇`).join(' · ');
+  document.getElementById('sync-label').textContent=p(now.getHours())+':'+p(now.getMinutes())+' 已更新';
+
+  // Core cards
+  document.getElementById('core-grid').innerHTML=CORE.map(f=>{
+    const arts=coreArts[f.key]||[];
+    const res=coreRes[f.key]||{bullets:[],topPick:null,whyRead:'',insight:''};
+    const wkN=arts.filter(a=>a.week).length;
+    const topN=arts.filter(a=>a.top).length;
+    const tp=res.topPick;
+    const others=arts.filter(a=>!tp||a.pmid!==tp.pmid).slice(0,6);
+
+    const bulletHTML=res.bullets.map(b=>{
+      const html=b.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      return `<div class="brief-item"><div class="bi-marker" style="background:${f.colorraw}"></div><div class="bi-text">${html}</div></div>`;
+    }).join('');
+
+    return `<div class="core-card">
+      <div class="cc-strip" style="background:linear-gradient(90deg,${f.colorraw},transparent)"></div>
+      <div class="cc-head">
+        <span class="cc-emoji">${f.emoji}</span>
+        <div><div class="cc-label">${f.label}</div><div class="cc-sub">${f.focus}</div></div>
+        <div class="cc-nums">
+          <div class="cc-num"><div class="cc-n" style="color:${f.colorraw}">${arts.length}</div><div class="cc-l">本期</div></div>
+          <div class="cc-num"><div class="cc-n" style="color:var(--red)">${wkN}</div><div class="cc-l">本周新</div></div>
+          <div class="cc-num"><div class="cc-n" style="color:var(--gold)">${topN}</div><div class="cc-l">顶刊</div></div>
+        </div>
+      </div>
+
+      <div class="cc-today">
+        <div class="today-label"><span class="ai-tag">DeepSeek AI</span>今日动态简报</div>
+        <div class="brief-items">${bulletHTML||'<div style="color:var(--ink4);font-size:12px">暂无文献数据</div>'}</div>
+        ${res.insight?`<div style="margin-top:10px;padding:8px 12px;background:var(--bg3);border-left:2px solid ${f.colorraw};border-radius:0 4px 4px 0;font-size:12px;color:var(--ink3)"><span style="color:${f.colorraw};font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-right:6px">趋势判断</span>${res.insight}</div>`:''}
+      </div>
+
+      ${tp?`<div class="cc-top-paper" onclick="window.open('https://pubmed.ncbi.nlm.nih.gov/${tp.pmid}/','_blank')">
+        <div class="tp-badge" style="color:${f.colorraw};border-color:${f.colorraw}40;background:${f.colorraw}12">
+          ${tp.top?'⭐ 顶刊':'📄 推荐'}
+        </div>
+        <div class="tp-body">
+          <div class="tp-title">${tp.title}</div>
+          <div class="tp-meta">
+            <span class="tp-j">${tp.journal}</span>
+            <span>${tp.date}</span>
+            ${tp.week?'<span class="tp-new">🆕 本周</span>':''}
+            ${res.whyRead?`<span style="color:var(--ink3)">· ${res.whyRead}</span>`:''}
+          </div>
+        </div>
+        <div class="tp-arr">→</div>
+      </div>`:''}
+
+      ${others.length?`
+      <div class="cc-more" id="more-${f.key}">
+        ${others.map((a,i)=>`<div class="more-paper" onclick="window.open('https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/','_blank')">
+          <div class="mp-num">${i+2}</div>
+          <div>
+            <div class="mp-title">${a.title.length>90?a.title.slice(0,90)+'…':a.title}</div>
+            <div class="mp-meta"><span class="mp-j">${a.journal}</span><span>${a.date}</span>${a.top?'<span style="color:var(--gold)">⭐</span>':''}${a.week?'<span style="color:var(--red)">本周</span>':''}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="cc-toggle" onclick="toggleMore('${f.key}',this)">
+        <span id="toggle-txt-${f.key}">查看全部 ${arts.length} 篇</span>
+        <span class="toggle-arrow" id="toggle-arr-${f.key}">▾</span>
+      </div>`:''}
+    </div>`;
+  }).join('');
+
+  // Peripheral cards
+  document.getElementById('periph-grid').innerHTML=PERIPH.map(f=>{
+    const arts=periphArts[f.key]||[];
+    const insight=periphRes[f.key]||'';
+    const papers=arts.slice(0,3);
+    return `<div class="pc">
+      <div class="pc-head">
+        <span class="pc-emoji">${f.emoji}</span>
+        <span class="pc-label">${f.label}</span>
+        <span class="pc-count">${arts.length}篇</span>
+      </div>
+      <div class="pc-insight">
+        <div class="pc-insight-label">借鉴价值分析</div>
+        <div class="pc-insight-text">${insight||'分析中…'}</div>
+      </div>
+      ${papers.length?`<div class="pc-papers">
+        ${papers.map(a=>`<div class="pc-paper" onclick="window.open('https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/','_blank')">
+          <div class="pcp-t">${a.title.length>65?a.title.slice(0,65)+'…':a.title}</div>
+          <div class="pcp-m"><span class="pcp-j">${a.journal.length>25?a.journal.slice(0,25)+'…':a.journal}</span><span>${a.date}</span>${a.top?'<span style="color:var(--gold)">⭐</span>':''}</div>
+        </div>`).join('')}
+      </div>`:''}
+    </div>`;
+  }).join('');
+
+  // Archive
+  renderArchive(); // async, runs in background
+}
+
+function toggleMore(key, el){
+  const box=document.getElementById('more-'+key);
+  const arr=document.getElementById('toggle-arr-'+key);
+  const txt=document.getElementById('toggle-txt-'+key);
+  const isOpen=box.classList.contains('open');
+  box.classList.toggle('open');
+  arr.classList.toggle('open');
+  const total=(coreArts[key]||[]).length;
+  txt.textContent=isOpen?`查看全部 ${total} 篇`:'收起';
+}
+
+async function renderArchive(){
+  const arc=await loadArc();
+  const wks=Object.keys(arc).sort().reverse();
+  if(!wks.length){
+    document.getElementById('archive-grid').innerHTML='<div class="empty">首次刷新后自动开始归档，按周索引</div>';
+    return;
+  }
+  const fieldLabel={};
+  [...CORE,...PERIPH].forEach(f=>fieldLabel[f.key]=f.emoji+' '+f.label);
+
+  document.getElementById('archive-grid').innerHTML=wks.map(wk=>{
+    // support both old format (array) and new format (object)
+    const entry = arc[wk];
+    const arts = Array.isArray(entry) ? entry : (entry.arts||[]);
+    const sums = Array.isArray(entry) ? {} : (entry.summaries||{});
+    const updatedAt = !Array.isArray(entry) && entry.updatedAt
+      ? new Date(entry.updatedAt).toLocaleString('zh-CN') : '';
+    const topN=arts.filter(a=>a.top).length;
+    const wkId=wk.replace(/[^a-z0-9]/gi,'_');
+
+    // Build summary section for core fields
+    const coreSumHTML = CORE.map(f=>{
+      const s=sums[f.key];
+      if(!s||!s.bullets||!s.bullets.length) return '';
+      return `<div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span>${f.emoji}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--ink);">${f.label}</span>
+          <span style="font-size:10px;color:var(--ink4);font-family:var(--mono);">${s.artCount||0}篇</span>
+          ${s.topPick?`<a href="https://pubmed.ncbi.nlm.nih.gov/${s.topPick.pmid}/" target="_blank" style="margin-left:auto;font-size:10px;color:var(--blue);text-decoration:none;">推荐文献 →</a>`:''}
+        </div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:5px;">
+          ${s.bullets.map(b=>`<li style="font-size:12px;color:var(--ink2);line-height:1.65;padding-left:14px;position:relative;">
+            <span style="position:absolute;left:0;color:${f.colorraw||'var(--blue)'};">▸</span>
+            ${b.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}
+          </li>`).join('')}
+        </ul>
+        ${s.insight?`<div style="margin-top:8px;padding:6px 10px;background:var(--bg3);border-left:2px solid ${f.colorraw||'var(--blue)'};border-radius:0 3px 3px 0;font-size:11px;color:var(--ink3);">${s.insight}</div>`:''}
+      </div>`;
+    }).filter(Boolean).join('');
+
+    // Peripheral insights
+    const periphSumHTML = PERIPH.map(f=>{
+      const s=sums['periph_'+f.key];
+      if(!s||!s.insight) return '';
+      return `<div style="display:flex;gap:8px;padding:7px 16px;border-bottom:1px solid var(--line);font-size:11px;">
+        <span style="flex-shrink:0;color:var(--ink4);">${f.emoji} ${f.label}</span>
+        <span style="color:var(--ink2);">${s.insight}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    return `<div class="aw">
+      <div class="aw-head" onclick="toggleWeek('${wkId}',this)">
+        <span class="aw-date">${wk}</span>
+        <div class="aw-counts">
+          <span class="aw-c"><span style="color:var(--blue)">${arts.length}</span> 篇文献</span>
+          ${topN?`<span class="aw-c"><span style="color:var(--gold)">${topN}</span> 顶刊</span>`:''}
+          ${Object.keys(sums).length?`<span class="aw-c" style="color:var(--blue);">✓ 含AI摘要</span>`:'<span class="aw-c" style="color:var(--ink4);">无AI摘要</span>'}
+          ${updatedAt?`<span class="aw-c" style="color:var(--ink4);">更新于${updatedAt}</span>`:''}
+        </div>
+        <span class="aw-arr" id="arr-${wkId}">▾</span>
+      </div>
+      <div class="aw-body" id="body-${wkId}">
+        ${coreSumHTML?`<div style="background:var(--bg2);border-bottom:1px solid var(--line);">
+          <div style="padding:8px 16px;font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:6px;">
+            <span style="padding:2px 6px;background:var(--blueb);border:1px solid rgba(74,158,255,.2);border-radius:3px;color:var(--blue);font-family:var(--mono);">AI</span>
+            本周动态摘要
+          </div>
+          ${coreSumHTML}
+          ${periphSumHTML?`<div style="padding:8px 16px 4px;font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;">外围领域借鉴</div>${periphSumHTML}`:''}
+        </div>`:''}
+        <div style="padding:8px 16px;font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;">文献列表</div>
+        ${arts.map(a=>`<div class="awa-art" onclick="window.open('https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/','_blank')">
+          <div class="awa-field">${fieldLabel[a.fieldKey]||a.fieldKey}</div>
+          <div><div class="awa-title">${a.title.length>80?a.title.slice(0,80)+'…':a.title}</div><div class="awa-j">${a.journal} · ${a.date}</div></div>
+          <div class="awa-badges">${a.top?`<span class="mini-badge" style="color:var(--gold);border-color:rgba(212,168,67,.3);">⭐</span>`:''}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleWeek(id, el){
+  const body=document.getElementById('body-'+id);
+  const arr=document.getElementById('arr-'+id);
+  body.classList.toggle('open');
+  arr.style.transform=body.classList.contains('open')?'rotate(180deg)':'';
+}
+
+startFetch();
+</script>
+</body>
+</html>
